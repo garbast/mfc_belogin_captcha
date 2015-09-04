@@ -22,7 +22,7 @@ class Tx_MfcBeloginCaptcha_Hook_BackendLoginHook {
 	protected $captcha = NULL;
 
 	public function __construct() {
-		$this->settingsService = t3lib_div::makeInstance('Tx_MfcBeloginCaptcha_SettingsService');
+		$this->settingsService =  \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('Tx_MfcBeloginCaptcha_SettingsService');
 	}
 
 	/**
@@ -50,7 +50,7 @@ class Tx_MfcBeloginCaptcha_Hook_BackendLoginHook {
 	protected function loginFailureCountGreater($amount) {
 		/** @var t3lib_db $database */
 		$database = & $GLOBALS['TYPO3_DB'];
-		$ip = t3lib_div::getIndpEnv('REMOTE_ADDR');
+		$ip =  \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('REMOTE_ADDR');
 
 		$rows = $database->exec_SELECTgetRows(
 			'error',
@@ -102,8 +102,8 @@ class Tx_MfcBeloginCaptcha_Hook_BackendLoginHook {
 	 */
 	protected function isSslActive() {
 		return $this->settingsService->getByPath('use_ssl') ||
-			t3lib_div::getIndpEnv('TYPO3_SSL') ||
-			t3lib_div::getIndpEnv('TYPO3_PORT') == 443;
+			 \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('TYPO3_SSL') ||
+			 \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('TYPO3_PORT') == 443;
 	}
 
 	/**
@@ -188,18 +188,18 @@ class Tx_MfcBeloginCaptcha_Hook_BackendLoginHook {
 	protected function renderCustomCaptchaWidget($key) {
 		$this->controller->content = str_replace(
 			'/*###POSTCSSMARKER###*/',
-			t3lib_div::getUrl(t3lib_div::getFileAbsFileName($this->settingsService->getByPath('widget_stylesheets'))) . LF . '/*###POSTCSSMARKER###*/',
+			 \TYPO3\CMS\Core\Utility\GeneralUtility::getUrl( \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName($this->settingsService->getByPath('widget_stylesheets'))) . LF . '/*###POSTCSSMARKER###*/',
 			$this->controller->content
 		);
 
-		$template = t3lib_div::getURL(t3lib_div::getFileAbsFileName($this->settingsService->getByPath('widget_template')));
+		$template =  \TYPO3\CMS\Core\Utility\GeneralUtility::getURL( \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName($this->settingsService->getByPath('widget_template')));
 
 		$marker = array(
 			'key' => $key,
 			'protocol' => $this->isSslActive() ? 'https' : 'http'
 		);
 
-		return t3lib_parsehtml::substituteMarkerArray($template, $marker, '###|###', TRUE);
+		return \TYPO3\CMS\Core\Html\HtmlParser::substituteMarkerArray($template, $marker, '###|###', TRUE);
 	}
 }
 
