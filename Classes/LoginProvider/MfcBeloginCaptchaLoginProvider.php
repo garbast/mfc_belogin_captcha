@@ -20,7 +20,7 @@ class MfcBeloginCaptchaLoginProvider extends \TYPO3\CMS\Backend\LoginProvider\Us
         parent::render($view, $pageRenderer, $loginController);
         $view->setTemplatePathAndFilename(
             \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName(
-                'EXT:mfc_belogin_captcha/Resources/Private/Templates/Login.7x.html'
+                'EXT:mfc_belogin_captcha/Resources/Private/Templates/Login/Login.7x.html'
             )
         );
     }
