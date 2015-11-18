@@ -13,56 +13,31 @@
  */
 namespace Mfc\MfcBeloginCaptcha\ViewHelpers;
 
-use Closure;
 use Evoweb\Recaptcha\Services\CaptchaService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextInterface;
-use TYPO3\CMS\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3\CMS\Fluid\Core\ViewHelper\Facets\CompilableInterface;
+use TYPO3\CMS\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 /**
  * Class CaptchaViewHelper
  * @package Mfc\MfcBeloginCaptcha\ViewHelpers
  */
-class CaptchaViewHelper extends AbstractViewHelper implements CompilableInterface
+class CaptchaViewHelper extends AbstractTagBasedViewHelper
 {
-
-    /**
-     * @var CaptchaService
-     */
-    static protected $captchaService;
 
     /**
      * @return string
      */
     public function render()
     {
-        return static::renderStatic(
-            [],
-            $this->buildRenderChildrenClosure(),
-            $this->renderingContext
-        );
-    }
+        $captchaService = GeneralUtility::makeInstance(CaptchaService::class);
 
-    /**
-     *
-     * @param array $arguments
-     * @param Closure $renderChildrenClosure
-     * @param RenderingContextInterface $renderingContext
-     *
-     * @return string
-     */
-    public static function renderStatic(
-        array $arguments,
-        Closure $renderChildrenClosure,
-        RenderingContextInterface $renderingContext
-    )
-    {
-        if (!static::$captchaService instanceof CaptchaService) {
-            static::$captchaService = GeneralUtility::makeInstance(CaptchaService::class);
-        }
+        $this->tag->addAttributes([
+            'class' => 'g-recaptcha',
+            'data-sitekey' => $captchaService->getReCaptcha()
+        ]);
+        $this->tag->forceClosingTag(true);
 
-        return '<script src="https://www.google.com/recaptcha/api.js" async defer></script><div class="g-recaptcha" data-sitekey="' . static::$captchaService->getReCaptcha() .'"></div>';
+        return $this->tag->render();
     }
 
 }
