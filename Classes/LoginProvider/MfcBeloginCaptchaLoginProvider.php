@@ -23,7 +23,7 @@ class MfcBeloginCaptchaLoginProvider extends UsernamePasswordLoginProvider
 
         $view->setTemplatePathAndFilename(
             GeneralUtility::getFileAbsFileName(
-                'EXT:mfc_belogin_captcha/Resources/Private/Templates/Login/Login.7x.html'
+                'EXT:mfc_belogin_captcha/Resources/Private/Templates/Login.html'
             )
         );
     }
