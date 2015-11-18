@@ -1,3 +1,4 @@
+{namespace mfc = Mfc\MfcBeloginCaptcha\ViewHelpers}
 <f:layout name="Login" />
 
 <f:section name="loginFormFields">
@@ -21,4 +22,7 @@
             </div>
         </div>
     </div>
+    <mfc:ifTooManyAuthenticationFailures>
+        <mfc:captcha />
+    </mfc:ifTooManyAuthenticationFailures>
 </f:section>
