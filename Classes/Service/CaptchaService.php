@@ -1,5 +1,4 @@
 <?php
-namespace Mfc\MfcBeloginCaptcha\Service;
 /***************************************************************
  *  Copyright notice
  *
@@ -22,108 +21,122 @@ namespace Mfc\MfcBeloginCaptcha\Service;
  *
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
+namespace Mfc\MfcBeloginCaptcha\Service;
+
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Sv\AbstractAuthenticationService;
 
 /**
  * Class CaptchaService
  *
  * @package Mfc\MfcBeloginCaptcha\Service
  */
-class CaptchaService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
-	/**
-	 * Settings Service
-	 *
-	 * @var \Mfc\MfcBeloginCaptcha\Service\SettingsService
-	 * @inject
-	 */
-	protected $settingsService;
+class CaptchaService extends AbstractAuthenticationService
+{
 
-	public function __construct() {
-		$this->settingsService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('Mfc\\MfcBeloginCaptcha\\Service\\SettingsService');
-	}
+    /**
+     * Settings Service
+     *
+     * @var \Mfc\MfcBeloginCaptcha\Service\SettingsService
+     * @inject
+     */
+    protected $settingsService;
 
-	/**
-	 * Method adds a further authUser method.
-	 *
-	 * Will return one of following authentication status codes:
-	 * - 0 - captcha failed
-	 * - 100 - just go on. User is not authenticated but there is still no reason to stop
-	 *
-	 * @return integer Authentication statuscode, one of 0 or 100
-	 */
-	public function authUser() {
-		$result = 100;
+    /**
+     * @return CaptchaService
+     */
+    public function __construct()
+    {
+        $this->settingsService = GeneralUtility::makeInstance('Mfc\\MfcBeloginCaptcha\\Service\\SettingsService');
+    }
 
-		if ($this->loginFailureCountGreater($this->settingsService->getByPath('failedTries'))) {
-				// read out challenge, answer and remote_addr
-			$data = array(
-				'remoteip' => $_SERVER['REMOTE_ADDR'],
-				'challenge' => trim(\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('recaptcha_challenge_field')),
-				'response' => trim(\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('recaptcha_response_field')),
-				'privatekey' => $this->settingsService->getByPath('private_key'),
-			);
+    /**
+     * Method adds a further authUser method.
+     *
+     * Will return one of following authentication status codes:
+     * - 0 - captcha failed
+     * - 100 - just go on. User is not authenticated but there is still no reason to stop
+     *
+     * @return integer Authentication statuscode, one of 0 or 100
+     */
+    public function authUser()
+    {
+        $result = 100;
 
-				// first discard useless input
-			if (empty($data['challenge']) || empty($data['response'])) {
-				$result = 0;
-				$GLOBALS['T3_VAR']['recaptcha_error'] = 'empty';
-			} else {
-				$response = $this->queryVerificationServer($data);
-				if (!$response || strtolower($response[0]) == 'false') {
-					$result = 0;
-					$GLOBALS['T3_VAR']['recaptcha_error'] = $response[1];
-				}
-			}
-		}
+        if ($this->loginFailureCountGreater($this->settingsService->getByPath('failedTries'))) {
+            // read out challenge, answer and remote_addr
+            $data = [
+                'remoteip' => $_SERVER['REMOTE_ADDR'],
+                'challenge' => trim(GeneralUtility::_GP('recaptcha_challenge_field')),
+                'response' => trim(GeneralUtility::_GP('recaptcha_response_field')),
+                'privatekey' => $this->settingsService->getByPath('private_key'),
+            ];
 
-		return $result;
-	}
+            // first discard useless input
+            if (empty($data['challenge']) || empty($data['response'])) {
+                $result = 0;
+                $GLOBALS['T3_VAR']['recaptcha_error'] = 'empty';
+            } else {
+                $response = $this->queryVerificationServer($data);
+                if (!$response || strtolower($response[0]) == 'false') {
+                    $result = 0;
+                    $GLOBALS['T3_VAR']['recaptcha_error'] = $response[1];
+                }
+            }
+        }
 
-	/**
-	 * Query reCAPTCHA server for captcha-verification
-	 *
-	 * @param array $data
-	 * @return array Array with verified- (boolean) and error-code (string)
-	 */
-	protected function queryVerificationServer($data) {
-			// find first occurence of '//' inside server string
-		$verifyServerInfo = @parse_url($this->settingsService->getByPath('verify_server'));
+        return $result;
+    }
 
-		if (empty($verifyServerInfo)) {
-			$response = array(FALSE, 'recaptcha-not-reachable');
-		} else {
-			$paramStr = \TYPO3\CMS\Core\Utility\GeneralUtility::implodeArrayForUrl('', $data);
-			$response = \TYPO3\CMS\Core\Utility\GeneralUtility::getURL($this->settingsService->getByPath('verify_server') . '?' . $paramStr);
-			$response = \TYPO3\CMS\Core\Utility\GeneralUtility::trimExplode(LF, $response);
-		}
+    /**
+     * Query reCAPTCHA server for captcha-verification
+     *
+     * @param array $data
+     * @return array Array with verified- (boolean) and error-code (string)
+     */
+    protected function queryVerificationServer($data)
+    {
+        // find first occurence of '//' inside server string
+        $verifyServerInfo = @parse_url($this->settingsService->getByPath('verify_server'));
 
-		return $response;
-	}
+        if (empty($verifyServerInfo)) {
+            $response = [false, 'recaptcha-not-reachable'];
+        } else {
+            $paramStr = GeneralUtility::implodeArrayForUrl('', $data);
+            $response = GeneralUtility::getUrl($this->settingsService->getByPath('verify_server') . '?' . $paramStr);
+            $response = GeneralUtility::trimExplode(LF, $response);
+        }
 
-	/**
-	 * Proof if login fails greater than amount
-	 *
-	 * @param integer $amount
-	 * @return boolean
-	 */
-	protected function loginFailureCountGreater($amount) {
-		/** @var \TYPO3\CMS\Core\Database\DatabaseConnection $database */
-		$database = & $GLOBALS['TYPO3_DB'];
-		$ip = \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('REMOTE_ADDR');
+        return $response;
+    }
 
-		$rows = $database->exec_SELECTgetRows(
-			'error',
-			'sys_log',
-			'type = 255 AND details_nr in (1,2) AND IP = \'' . $database->quoteStr($ip, 'sys_log') . '\'',
-			'',
-			'tstamp DESC',
-			$amount
-		);
+    /**
+     * Proof if login fails greater than amount
+     *
+     * @param integer $amount
+     * @return boolean
+     */
+    protected function loginFailureCountGreater($amount)
+    {
+        /** @var \TYPO3\CMS\Core\Database\DatabaseConnection $database */
+        $database = &$GLOBALS['TYPO3_DB'];
+        $ip = GeneralUtility::getIndpEnv('REMOTE_ADDR');
 
-			// make sure all rows contain a login failure
-		$rows = array_filter($rows, function ($row) { return $row['error'] == 3 ? $row : ''; });
+        $rows = $database->exec_SELECTgetRows(
+            'error',
+            'sys_log',
+            'type = 255 AND details_nr in (1,2) AND IP = \'' . $database->quoteStr($ip, 'sys_log') . '\'',
+            '',
+            'tstamp DESC',
+            $amount
+        );
 
-		return count($rows) == $amount;
-	}
+        // make sure all rows contain a login failure
+        $rows = array_filter($rows, function ($row) {
+            return $row['error'] == 3 ? $row : '';
+        });
+
+        return count($rows) == $amount;
+    }
+
 }
-
-?>

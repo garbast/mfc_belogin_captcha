@@ -1,206 +1,231 @@
 <?php
+use Mfc\MfcBeloginCaptcha\Service\SettingsService;
+use TYPO3\CMS\Core\Service\MarkerBasedTemplateService;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Class Tx_MfcBeloginCaptcha_Hook_BackendLoginHook
  */
-class Tx_MfcBeloginCaptcha_Hook_BackendLoginHook {
-	/**
-	 * Settings Service
-	 *
-	 * @var Tx_MfcBeloginCaptcha_SettingsService
-	 */
-	protected $settingsService;
+class Tx_MfcBeloginCaptcha_Hook_BackendLoginHook
+{
 
-	/**
-	 * @var ux_SC_index
-	 */
-	protected $controller;
+    /**
+     * Settings Service
+     *
+     * @var SettingsService
+     */
+    protected $settingsService;
 
-	/**
-	 * @var \tx_jmrecaptcha
-	 */
-	protected $captcha = NULL;
+    /**
+     * @var \TYPO3\CMS\Backend\Controller\LoginController
+     */
+    protected $controller;
 
-	public function __construct() {
-		$this->settingsService =  \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('Tx_MfcBeloginCaptcha_SettingsService');
-	}
+    /**
+     * @var \tx_jmrecaptcha
+     */
+    protected $captcha = null;
 
-	/**
-	 * @param ux_SC_index $controller
-	 * @param array $marker
-	 * @return mixed
-	 */
-	public function renderLoginForm($controller, $marker) {
-		$this->controller = $controller;
-		$marker['CAPTCHA'] = '';
+    /**
+     * @var MarkerBasedTemplateService
+     */
+    protected $markerBasedTemplateService;
 
-		if ($this->loginFailureCountGreater($this->settingsService->getByPath('failedTries'))) {
-			$marker['CAPTCHA'] = '<div style="margin-top: 5px">' . $this->getReCaptcha() . '</div>';
-		}
+    /**
+     * @return Tx_MfcBeloginCaptcha_Hook_BackendLoginHook
+     */
+    public function __construct()
+    {
+        $this->settingsService = GeneralUtility::makeInstance('Tx_MfcBeloginCaptcha_SettingsService');
+        $this->markerBasedTemplateService = GeneralUtility::makeInstance(MarkerBasedTemplateService::class);
+    }
 
-		$marker['FORM'] = $this->renderCaptchaError($marker['FORM']);
+    /**
+     * @param \TYPO3\CMS\Backend\Controller\LoginController $controller
+     * @param array $marker
+     * @return mixed
+     */
+    public function renderLoginForm($controller, $marker)
+    {
+        $this->controller = $controller;
+        $marker['CAPTCHA'] = '';
 
-		return array($controller, $marker);
-	}
+        if ($this->loginFailureCountGreater($this->settingsService->getByPath('failedTries'))) {
+            $marker['CAPTCHA'] = '<div style="margin-top: 5px">' . $this->getReCaptcha() . '</div>';
+        }
 
-	/**
-	 * @param integer $amount
-	 * @return boolean
-	 */
-	protected function loginFailureCountGreater($amount) {
-		/** @var t3lib_db $database */
-		$database = & $GLOBALS['TYPO3_DB'];
-		$ip =  \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('REMOTE_ADDR');
+        $marker['FORM'] = $this->renderCaptchaError($marker['FORM']);
 
-		$rows = $database->exec_SELECTgetRows(
-			'error',
-			'sys_log',
-			'type = 255 AND details_nr = 1 AND IP = \'' . $database->quoteStr($ip, 'sys_log') . '\'',
-			'',
-			'tstamp DESC',
-			$amount
-		);
+        return [$controller, $marker];
+    }
 
-			// make sure all rows contain a login failure
-		$rows = array_filter($rows, function ($row) { return $row['error'] == 3 ? $row : ''; });
+    /**
+     * @param integer $amount
+     * @return boolean
+     */
+    protected function loginFailureCountGreater($amount)
+    {
+        /** @var t3lib_db $database */
+        $database = &$GLOBALS['TYPO3_DB'];
+        $ip = GeneralUtility::getIndpEnv('REMOTE_ADDR');
 
-		return count($rows) == $amount;
-	}
+        $rows = $database->exec_SELECTgetRows(
+            'error',
+            'sys_log',
+            'type = 255 AND details_nr = 1 AND IP = \'' . $database->quoteStr($ip, 'sys_log') . '\'',
+            '',
+            'tstamp DESC',
+            $amount
+        );
 
-	/**
-	 * @return string
-	 */
-	protected function getReCaptcha() {
-			// extract server url and public key
-		if ($this->isSslActive()) {
-			$server = rtrim($this->settingsService->getByPath('api_server_secure'), '/');
-		} else {
-			$server = rtrim($this->settingsService->getByPath('api_server'), '/');
-		}
+        // make sure all rows contain a login failure
+        $rows = array_filter($rows, function ($row) {
+            return $row['error'] == 3 ? $row : '';
+        });
 
-		$key = $this->settingsService->getByPath('public_key');
+        return count($rows) == $amount;
+    }
 
-			// were any errors given in the last query?
-		$error = '';
-		if ($GLOBALS['T3_VAR']['recaptcha_error']) {
-			$error = '&error=' . $GLOBALS['T3_VAR']['recaptcha_error'];
-		}
+    /**
+     * @return string
+     */
+    protected function getReCaptcha()
+    {
+        // extract server url and public key
+        if ($this->isSslActive()) {
+            $server = rtrim($this->settingsService->getByPath('api_server_secure'), '/');
+        } else {
+            $server = rtrim($this->settingsService->getByPath('api_server'), '/');
+        }
 
-		$content = '<script type="text/javascript">var RecaptchaOptions = { ' . $this->getRecaptchaOptions() . ' };</script>';
+        $key = $this->settingsService->getByPath('public_key');
 
-		if ($this->settingsService->getByPath('theme') == 'custom') {
-			$content .= $this->renderCustomCaptchaWidget($key);
-		} else {
-			$content .= '<script type="text/javascript" src="' . htmlspecialchars($server . '/challenge?k=' . $key . $error) . '"></script>';
-		}
+        // were any errors given in the last query?
+        $error = '';
+        if ($GLOBALS['T3_VAR']['recaptcha_error']) {
+            $error = '&error=' . $GLOBALS['T3_VAR']['recaptcha_error'];
+        }
 
-		return $content;
-	}
+        $content = '<script type="text/javascript">var RecaptchaOptions = { ' . $this->getRecaptchaOptions() . ' };</script>';
 
-	/**
-	 * @return boolean
-	 */
-	protected function isSslActive() {
-		return $this->settingsService->getByPath('use_ssl') ||
-			 \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('TYPO3_SSL') ||
-			 \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('TYPO3_PORT') == 443;
-	}
+        if ($this->settingsService->getByPath('theme') == 'custom') {
+            $content .= $this->renderCustomCaptchaWidget($key);
+        } else {
+            $content .= '<script type="text/javascript" src="' . htmlspecialchars($server . '/challenge?k=' . $key . $error) . '"></script>';
+        }
 
-	/**
-	 * @param string $form
-	 * @return string
-	 */
-	protected function renderCaptchaError($form) {
-		if (isset($GLOBALS['T3_VAR']['recaptcha_error'])) {
-			/** @var language $language */
-			$language = $GLOBALS['LANG'];
-			$language->includeLLFile('EXT:mfc_belogin_captcha/Resources/Private/Language/locallang.xml');
-			$marker['ERROR_LOGIN_TITLE'] = $language->getLL('labels.recaptcha.error-title', TRUE);
-			$marker['ERROR_LOGIN_DESCRIPTION'] = $language->getLL('labels.recaptcha.error-' . $GLOBALS['T3_VAR']['recaptcha_error'], TRUE);
+        return $content;
+    }
 
-			$template = t3lib_parsehtml::getSubpart($GLOBALS['TBE_TEMPLATE']->moduleTemplate, '###CAPTCHA_ERROR###');
-			$result = t3lib_parsehtml::substituteMarkerArray($template, $marker, '###|###');
+    /**
+     * @return boolean
+     */
+    protected function isSslActive()
+    {
+        return $this->settingsService->getByPath('use_ssl') ||
+        GeneralUtility::getIndpEnv('TYPO3_SSL') ||
+        GeneralUtility::getIndpEnv('TYPO3_PORT') == 443;
+    }
 
-			$errors = t3lib_parsehtml::getSubpart($form, '###LOGIN_ERROR###');
-			$errors = substr($errors, 0, strrpos($errors, '</div>')) . $result . '</div>';
+    /**
+     * @param string $form
+     * @return string
+     */
+    protected function renderCaptchaError($form)
+    {
+        if (isset($GLOBALS['T3_VAR']['recaptcha_error'])) {
+            /** @var language $language */
+            $language = $GLOBALS['LANG'];
+            $language->includeLLFile('EXT:mfc_belogin_captcha/Resources/Private/Language/locallang.xml');
+            $marker['ERROR_LOGIN_TITLE'] = $language->getLL('labels.recaptcha.error-title', true);
+            $marker['ERROR_LOGIN_DESCRIPTION'] = $language->getLL('labels.recaptcha.error-' . $GLOBALS['T3_VAR']['recaptcha_error'],
+                true);
 
-			$form = t3lib_parsehtml::substituteSubpart($form, '###LOGIN_ERROR###', $errors);
-		}
+            $template = $this->markerBasedTemplateService->getSubpart($GLOBALS['TBE_TEMPLATE']->moduleTemplate, '###CAPTCHA_ERROR###');
+            $result = $this->markerBasedTemplateService->substituteMarkerArray($template, $marker, '###|###');
 
-		$form = t3lib_parsehtml::substituteSubpart($form, '###CAPTCHA_ERROR###', '');
+            $errors = $this->markerBasedTemplateService->getSubpart($form, '###LOGIN_ERROR###');
+            $errors = substr($errors, 0, strrpos($errors, '</div>')) . $result . '</div>';
 
-		return $form;
-	}
+            $form = $this->markerBasedTemplateService->substituteSubpart($form, '###LOGIN_ERROR###', $errors);
+        }
 
-	/**
-	 * @return string
-	 */
-	protected function getRecaptchaOptions() {
-		$recaptchaOptions = array();
+        $form = $this->markerBasedTemplateService->substituteSubpart($form, '###CAPTCHA_ERROR###', '');
 
-			// Language detection
-		$language = $this->settingsService->getByPath('lang');
-		if (!empty($language)) {
-				// language from extension configuration
-			$recaptchaOptions['lang'] = self::jsQuote($language);
-		} elseif (!empty($GLOBALS['LANG']->lang)) {
-				// automatic language detection (TYPO3 settings)
-			$recaptchaOptions['lang'] = self::jsQuote($GLOBALS['LANG']->lang);
-		}
+        return $form;
+    }
 
-			// Theme
-		if ($this->settingsService->getByPath('theme')) {
-			$recaptchaOptions['theme'] = self::jsQuote($this->settingsService->getByPath('theme'));
-		}
+    /**
+     * @return string
+     */
+    protected function getRecaptchaOptions()
+    {
+        $recaptchaOptions = [];
 
-			// TabIndex
-		if ($this->settingsService->getByPath('tabindex')) {
-			$recaptchaOptions['tabindex'] = self::jsQuote($this->settingsService->getByPath('tabindex'));
-		}
+        // Language detection
+        $language = $this->settingsService->getByPath('lang');
+        if (!empty($language)) {
+            // language from extension configuration
+            $recaptchaOptions['lang'] = self::jsQuote($language);
+        } elseif (!empty($GLOBALS['LANG']->lang)) {
+            // automatic language detection (TYPO3 settings)
+            $recaptchaOptions['lang'] = self::jsQuote($GLOBALS['LANG']->lang);
+        }
 
-			// custom theme widget
-		if ($this->settingsService->getByPath('custom_theme_widget')) {
-			$recaptchaOptions['custom_theme_widget'] = self::jsQuote($this->settingsService->getByPath('custom_theme_widget'));
-		}
+        // Theme
+        if ($this->settingsService->getByPath('theme')) {
+            $recaptchaOptions['theme'] = self::jsQuote($this->settingsService->getByPath('theme'));
+        }
 
-			// Build option string
-		$recaptchaOptionsTmp = array();
-		foreach ($recaptchaOptions as $optionKey => $optionValue) {
-			$recaptchaOptionsTmp[] = $optionKey . ' : ' . $optionValue;
-		}
-		return implode(', ', $recaptchaOptionsTmp);
-	}
+        // TabIndex
+        if ($this->settingsService->getByPath('tabindex')) {
+            $recaptchaOptions['tabindex'] = self::jsQuote($this->settingsService->getByPath('tabindex'));
+        }
 
-	/**
-	 * Quote js-param-value
-	 *
-	 * @param string $value Value
-	 * @return string Quoted value
-	 */
-	protected static function jsQuote($value) {
-		return '\'' . addslashes((string) $value) . '\'';
-	}
+        // custom theme widget
+        if ($this->settingsService->getByPath('custom_theme_widget')) {
+            $recaptchaOptions['custom_theme_widget'] = self::jsQuote($this->settingsService->getByPath('custom_theme_widget'));
+        }
 
-	/**
-	 * @param string $key
-	 * @return string
-	 */
-	protected function renderCustomCaptchaWidget($key) {
-		$this->controller->content = str_replace(
-			'/*###POSTCSSMARKER###*/',
-			 \TYPO3\CMS\Core\Utility\GeneralUtility::getUrl( \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName($this->settingsService->getByPath('widget_stylesheets'))) . LF . '/*###POSTCSSMARKER###*/',
-			$this->controller->content
-		);
+        // Build option string
+        $recaptchaOptionsTmp = [];
+        foreach ($recaptchaOptions as $optionKey => $optionValue) {
+            $recaptchaOptionsTmp[] = $optionKey . ' : ' . $optionValue;
+        }
+        return implode(', ', $recaptchaOptionsTmp);
+    }
 
-		$template =  \TYPO3\CMS\Core\Utility\GeneralUtility::getURL( \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName($this->settingsService->getByPath('widget_template')));
+    /**
+     * Quote js-param-value
+     *
+     * @param string $value Value
+     * @return string Quoted value
+     */
+    protected static function jsQuote($value)
+    {
+        return '\'' . addslashes((string)$value) . '\'';
+    }
 
-		$marker = array(
-			'key' => $key,
-			'protocol' => $this->isSslActive() ? 'https' : 'http'
-		);
+    /**
+     * @param string $key
+     * @return string
+     */
+    protected function renderCustomCaptchaWidget($key)
+    {
+        $this->controller->content = str_replace(
+            '/*###POSTCSSMARKER###*/',
+            GeneralUtility::getUrl(GeneralUtility::getFileAbsFileName($this->settingsService->getByPath('widget_stylesheets'))) . LF . '/*###POSTCSSMARKER###*/',
+            $this->controller->content
+        );
 
-		return \TYPO3\CMS\Core\Html\HtmlParser::substituteMarkerArray($template, $marker, '###|###', TRUE);
-	}
+        $template = GeneralUtility::getUrl(GeneralUtility::getFileAbsFileName($this->settingsService->getByPath('widget_template')));
+
+        $marker = [
+            'key' => $key,
+            'protocol' => $this->isSslActive() ? 'https' : 'http',
+        ];
+
+        return $this->markerBasedTemplateService->substituteMarkerArray($template, $marker, '###|###', true);
+    }
+
 }
-
-?>

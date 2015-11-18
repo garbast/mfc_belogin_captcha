@@ -1,27 +1,31 @@
 <?php
 namespace Mfc\MfcBeloginCaptcha\LoginProvider;
 
+use TYPO3\CMS\Backend\Controller\LoginController;
+use TYPO3\CMS\Backend\LoginProvider\UsernamePasswordLoginProvider;
+use TYPO3\CMS\Core\Page\PageRenderer;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Fluid\View\StandaloneView;
+
 /**
  * Class MfcBeloginCaptchaLoginProvider
  * @package Mfc\MfcBeloginCaptcha\LoginProvider
  */
-class MfcBeloginCaptchaLoginProvider extends \TYPO3\CMS\Backend\LoginProvider\UsernamePasswordLoginProvider
+class MfcBeloginCaptchaLoginProvider extends UsernamePasswordLoginProvider
 {
     /**
-     * @param \TYPO3\CMS\Fluid\View\StandaloneView $view
-     * @param \TYPO3\CMS\Core\Page\PageRenderer $pageRenderer
-     * @param \TYPO3\CMS\Backend\Controller\LoginController $loginController
+     * @param StandaloneView $view
+     * @param PageRenderer $pageRenderer
+     * @param LoginController $loginController
      */
-    public function render(
-        \TYPO3\CMS\Fluid\View\StandaloneView $view,
-        \TYPO3\CMS\Core\Page\PageRenderer $pageRenderer,
-        \TYPO3\CMS\Backend\Controller\LoginController $loginController
-    ) {
+    public function render(StandaloneView $view, PageRenderer $pageRenderer, LoginController $loginController) {
         parent::render($view, $pageRenderer, $loginController);
+
         $view->setTemplatePathAndFilename(
-            \TYPO3\CMS\Core\Utility\GeneralUtility::getFileAbsFileName(
+            GeneralUtility::getFileAbsFileName(
                 'EXT:mfc_belogin_captcha/Resources/Private/Templates/Login/Login.7x.html'
             )
         );
     }
+
 }

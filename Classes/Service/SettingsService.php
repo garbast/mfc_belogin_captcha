@@ -1,5 +1,5 @@
 <?php
-namespace Mfc\MfcBeloginCaptcha\Service;
+
 /***************************************************************
  *  Copyright notice
  *
@@ -22,6 +22,10 @@ namespace Mfc\MfcBeloginCaptcha\Service;
  *
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
+namespace Mfc\MfcBeloginCaptcha\Service;
+
+use TYPO3\CMS\Core\SingletonInterface;
+use TYPO3\CMS\Extbase\Reflection\ObjectAccess;
 
 /**
  * Provide a way to get the configuration just everywhere
@@ -33,37 +37,40 @@ namespace Mfc\MfcBeloginCaptcha\Service;
  * @package TYPO3
  * @subpackage mfc_belogin_captcha
  */
-class SettingsService implements \TYPO3\CMS\Core\SingletonInterface {
-	/**
-	 * @var array
-	 */
-	protected $settings = NULL;
+class SettingsService implements SingletonInterface
+{
 
-	/**
-	 * Returns all settings.
-	 *
-	 * @return array
-	 */
-	public function getSettings() {
-		if ($this->settings === NULL) {
-			$this->settings = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['mfc_belogin_captcha']);
-		}
-		return $this->settings;
-	}
+    /**
+     * @var array
+     */
+    protected $settings = null;
 
-	/**
-	 * Returns the settings at path $path, which is separated by ".",
-	 * e.g. "pages.uid".
-	 * "pages.uid" would return $this->settings['pages']['uid'].
-	 *
-	 * If the path is invalid or no entry is found, false is returned.
-	 *
-	 * @param string $path
-	 * @return mixed
-	 */
-	public function getByPath($path) {
-		return \TYPO3\CMS\Extbase\Reflection\ObjectAccess::getPropertyPath($this->getSettings(), $path);
-	}
+    /**
+     * Returns all settings.
+     *
+     * @return array
+     */
+    public function getSettings()
+    {
+        if ($this->settings === null) {
+            $this->settings = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['mfc_belogin_captcha']);
+        }
+        return $this->settings;
+    }
+
+    /**
+     * Returns the settings at path $path, which is separated by ".",
+     * e.g. "pages.uid".
+     * "pages.uid" would return $this->settings['pages']['uid'].
+     *
+     * If the path is invalid or no entry is found, false is returned.
+     *
+     * @param string $path
+     * @return mixed
+     */
+    public function getByPath($path)
+    {
+        return ObjectAccess::getPropertyPath($this->getSettings(), $path);
+    }
+
 }
-
-?>
